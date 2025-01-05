@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="7e43cbd5-336b-4480-827d-04a2c6437221" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="6dfc137d-ede1-41b8-bc6b-6df1f2e7d544" >
+		<db:my-sql-connection host="localhost" port="3306" user="root" password="12345" database="productdata"/>
+	</db:config>
+	<flow name="product-managementFlow" doc:id="293ad33b-20eb-453c-9ce9-ba45b8130468" >
+		<http:listener doc:name="FetchAllDetails" doc:id="f0c99ef2-515e-4dea-b499-c8411af8a3a5" path="/productsget" config-ref="HTTP_Listener_config"/>
+		<db:select doc:name="get" doc:id="f86f1d07-1a53-4bdf-84aa-1d5ae166d263" config-ref="Database_Config">
+			<db:sql ><![CDATA[SELECT * FROM productdata.products;]]></db:sql>
+		</db:select>
+		<ee:transform doc:name="Transform Message" doc:id="b0120095-1fbd-456e-9401-f26bc0bf770a" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload map (item) -> {
+    id: item.id,
+    name: item.name,
+    price: item.price
+}
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="product-managementFlow1" doc:id="498eb73a-79d0-468b-8b23-42467e5c84a1" >
+		<http:listener doc:name="Add data" doc:id="74306ddc-a3ec-4dd3-8219-957e59f73c29" config-ref="HTTP_Listener_config" path="/productsadd"/>
+		<set-payload value="#[payload]" doc:name="Set Payload" doc:id="8cb4df10-7c72-4756-9f84-cfb14aa94261" />
+		<db:insert doc:name="Insert" doc:id="329f6227-a0a5-4eec-be04-1a4413fb3c4f" config-ref="Database_Config">
+			<db:sql ><![CDATA[INSERT INTO productdata.products (name, price) VALUES (:name, :price);
+]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	
+	"name"  : payload.name,
+	"price"  : payload.price
+	
+	
+}]]]></db:input-parameters>
+		</db:insert>
+		<set-payload value="#[payload]" doc:name="Set Payload" doc:id="1d4b499a-2230-42c2-8fc1-bbd621e37f5f" />
+	</flow>
+	<flow name="product-managementFlow2" doc:id="6ca137d9-aae4-45ba-a033-33965bab8590" >
+		<http:listener doc:name="UpdateProduct" doc:id="4cf0163c-f8a6-49f4-8fb3-1179b2642b30" config-ref="HTTP_Listener_config" path="/productsupdate/{id}"/>
+		<ee:transform doc:name="Transform Message" doc:id="d514bbd1-46ca-4c96-afc4-d71fa8f5c603" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+    id: (attributes.uriParams.id as String) as Number,
+    name: payload.name,
+    price: payload.price
+}
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<db:update doc:name="Update" doc:id="3ce5a26a-4cbf-402b-9368-6e474eb3edc1" config-ref="Database_Config">
+			<db:sql ><![CDATA[UPDATE products SET name = :name, price = :price WHERE id = :id;
+]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	"id":payload.id,
+	"name"  : payload.name,
+	"price"  : payload.price
+	
+	
+}]]]></db:input-parameters>
+		</db:update>
+		<ee:transform doc:name="Transform Message" doc:id="f296c063-9e63-4b53-804e-5863d95da6a1" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+{
+    "status": "Product updated successfully",
+    "updatedId": payload.id
+}
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="product-managementFlow3" doc:id="5f463a1f-42c8-46ba-99bd-69a5b834992d" >
+		<http:listener doc:name="deleteproduct" doc:id="d2f4213d-d33b-4778-ab9b-a5a423414060" config-ref="HTTP_Listener_config" path="/products/{id}"/>
+		<ee:transform doc:name="Transform Message" doc:id="8fddd5e7-4a1a-4193-82db-e78977414a6f">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    id: (attributes.uriParams.id as String) as Number
+}
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<db:delete doc:name="Delete" doc:id="f478172e-f1f9-4f2b-a22a-3ad98f6ec2b9" config-ref="Database_Config">
+			<db:sql ><![CDATA[DELETE FROM products WHERE id = :id;
+]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+    "id": payload.id
+}]
+]]></db:input-parameters>
+		</db:delete>
+		<ee:transform doc:name="Transform Message" doc:id="73cc17da-6a50-482d-acf4-c93772e2da82">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+
+{
+    status: "Product deleted successfully",
+    deletedId: payload.id
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+</mule>

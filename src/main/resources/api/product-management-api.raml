@@ -1,0 +1,33 @@
+#%RAML 1.0
+title: product-Management-Api
+version: v1
+
+/products:
+  get:
+    description: Fetch all products
+    responses:
+      200:
+        body:
+          application/json:
+            example: |
+              [
+                { "id": 1, "name": "Laptop", "price": 1200 },
+                { "id": 2, "name": "Phone", "price": 800 }
+              ]
+  post:
+    description: Add a new product
+    body:
+      application/json:
+        example: |
+          { "name": "Tablet", "price": 500 }
+  /{id}:
+    get:
+      description: Fetch product by ID
+    put:
+      description: Update product by ID
+      body:
+        application/json:
+          example: |
+            { "name": "Updated Laptop", "price": 1500 }
+    delete:
+      description: Delete product by ID
